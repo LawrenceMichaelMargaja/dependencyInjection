@@ -27,9 +27,119 @@ now for the other part of the term "Dependency"...
     - **Easier to refactor** === Classes being decoupled means that you can refactor them without affecting the other classes.
     - **Easier code to work with in a Team Setting** === Code that is decoupled can be more easily handled by a team as they can focus more on classes they are assigned to rather than tightly coupled classes where they'd need to also be aware of how their changes affect those classes.
 7. ### What are the ways we can use Dependency Injection?
-   - There are three ways we can inject dependencies.
+   - There are three ways we can inject dependencies.</br> Let me show these ways but first let's build the classes we need to demonstrate the injections.
+   - Here they are:
+```php
+// Logger and Database classes, think of them as specific tools in the kitchen.
+class Logger {
+    // Logger implementation...
+}
+
+class Database {
+    // Database implementation...
+}
+
+// DI Container setup, like a central tool shed where all kitchen tools are organized.
+class DIContainer {
+    private $services = [];
+
+    public function register($name, $callable) {
+        $this->services[$name] = $callable;
+    }
+
+    public function get($name) {
+        return $this->services[$name]();
+    }
+}
+
+// Setting up the DI container (the tool shed) with Logger and Database (kitchen tools).
+$container = new DIContainer();
+$container->register('Logger', function() { return new Logger(); });
+$container->register('Database', function() { return new Database(); });
+```
    
-8. ### Dependency Injection Containers can make you life easier
+- ### Injecting a container directly into a controller
+  - Dependencies are provided directly to an object via its constructor.
+  - What does this mean? Here is a sample code of injecting into the controller
+```php
+class ArticleController {
+    private $diContainer;  // This is a variable that is private, which means it cannot be accessed or modified outside of this class.private 
+                           // This is also the variable that stores the value(which is the container) passed into the controller in the construct function.
+
+    // DI container is passed to the constructor
+    public function __construct($container) {
+        $this->diContainer = $container;  // Assigning the passed container to the property
+    }
+
+    public function createArticle($data) {
+        // Fetching dependencies from the DI container
+        $logger = $this->diContainer->get('Logger');
+        $database = $this->diContainer->get('Database');
+        
+        // Use $logger and $database as needed...
+    }
+}
+```
+
+   - #### Why doing this is not consider good?
+     - Because this makes your classes tightly coupled, making hard for a lot of things like debugging, testing, and refactoring.
+     - Another thing that makes this bad is that your class has longer code and longer code means more chances of human error.
+     - Dependencies might not be clear --- This may be a stretch but the dependencies used in the class might not be clear to the next dev. Although the dependencies can be seen in whatever function is using it in the class, if the class itself is gigantic, it may take the dev time to check for the dependencies. Also, it is the constructor where we usually check first for the dependencies used in the class. However, since it's just the container passed, there are no dependencies passed at all.
+- ### Dependency Injection into the Constructor
+  - Instead of injecting the container, a better way would be to inject the dependencies into the constructor.
+    - Here is a sample code of what this type of dependency injection looks like:
+```php
+        class ArticleController {
+            private $logger;
+            private $database;
+
+        // Logger and Database are injected through the constructor
+        public function __construct(Logger $loggerInstance, Database $databaseInstance) {
+            $this->logger = $loggerInstance;
+            $this->database = $databaseInstance;
+        }
+
+        public function createArticle($data) {
+            // Use $this->logger and $this->database directly
+        }
+          }
+    
+          // Creating an instance of ArticleController with dependencies
+          $logger = $container->get('Logger');
+          $database = $container->get('Database');
+          $articleController = new ArticleController($logger, $database);
+```
+- #### Why doing this is not consider good?
+    - Because this makes your constructor so verbose. Imagine, if you had to inject 20 dependencies, the constructor will be so long and it will be such a pain to do.
+    - There's also the factor of human error being higher in chance when the code is longer.
+
+- #### Why doing this is not consider good?
+    - Because this makes your constructor so verbose. Imagine, if you had to inject 20 dependencies, the constructor will be so long and it will be such a pain to do.
+    - There's also the factor of human
+
+- ### Dependency Injection into the Properties
+    - Dependencies are injected directly into the properties of an object, often without the need for explicit setter methods.
+    - What does that mean? it means you make properties in your class and then the injection is done automatically for you
+    - This way of Dependency Injection is also the one that's leaves your class the cleanest. Which means there is much lesser code compared to the other two methods of Dependency Injection.
+    - Here is what it looks like:
+```php
+    class ArticleController {
+        #[Inject]
+        private $logger;   // A place in the kitchen for the Logger tool.
+        #[Inject]
+        private $database; // A place in the kitchen for the Database tool.
+
+    // No need for the chef to bring tools; they are already in the kitchen.
+    public function createArticle($data) {
+        // The chef uses the Logger and Database directly from their kitchen.
+        }
+    }
+
+    // Creating an ArticleController instance.
+    // The DI container or framework automatically equips the chef (ArticleController) with necessary tools (Logger, Database).
+    $articleController = new ArticleController();
+```
+- ### Dependency Injection Containers can make you life easier
    - When using dependency injection, it can get quite cumbersome if the app is large.</br> 
    You create each object and its dependencies which is again cumbersome and error-prone.</br> 
    However, there are things called containers that can help us 
